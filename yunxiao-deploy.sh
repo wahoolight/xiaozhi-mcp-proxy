@@ -11,13 +11,19 @@ cd "$APP_DIR"
 
 echo "==> deploy xiaozhi-mcp-proxy at $APP_DIR"
 
-if [[ ! -f "$TGZ" ]]; then
-  echo "artifact not found: $APP_DIR/$TGZ" >&2
-  exit 1
+# 云效只下载 tgz；artifact/ 二次打包时可能嵌套同名 tgz，需解到出现 mcp_pipe.py
+if [[ ! -f mcp_pipe.py ]]; then
+  if [[ ! -f "$TGZ" ]]; then
+    echo "artifact not found: $APP_DIR/$TGZ" >&2
+    exit 1
+  fi
+  tar -zxvf "$TGZ"
+  if [[ ! -f mcp_pipe.py && -f "$TGZ" ]]; then
+    echo "==> nested artifact detected, extracting inner $TGZ"
+    tar -zxvf "$TGZ"
+  fi
+  rm -f "$TGZ"
 fi
-
-tar -zxvf "$TGZ"
-rm -f "$TGZ"
 
 if [[ ! -f mcp_pipe.py ]]; then
   echo "mcp_pipe.py not found after extract" >&2
@@ -31,6 +37,7 @@ fi
 
 "$PYTHON" -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple
 "$PYTHON" -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+"$PYTHON" -c "import aiohttp, websockets; print('python deps ok')"
 
 export PATH=/usr/local/node20/bin:/usr/local/bin:${PATH:-}
 if [[ -z "${MCP_ENDPOINT:-}" && -n "${XIAOZHI_MCP_ENDPOINT:-}" ]]; then
